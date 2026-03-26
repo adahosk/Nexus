@@ -4,7 +4,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Items Table
-CREATE TABLE items (
+CREATE TABLE IF NOT EXISTS items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   barcode TEXT UNIQUE,
@@ -15,7 +15,7 @@ CREATE TABLE items (
 );
 
 -- Customers Table
-CREATE TABLE customers (
+CREATE TABLE IF NOT EXISTS customers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   phone TEXT,
@@ -25,7 +25,7 @@ CREATE TABLE customers (
 );
 
 -- Suppliers Table
-CREATE TABLE suppliers (
+CREATE TABLE IF NOT EXISTS suppliers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   phone TEXT,
@@ -35,7 +35,7 @@ CREATE TABLE suppliers (
 );
 
 -- Transactions Table (Sales, Purchases, Payments)
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   type TEXT NOT NULL CHECK (type IN ('sale', 'purchase', 'payment_in', 'payment_out')),
   entity_id UUID, -- Can be customer_id or supplier_id depending on type
@@ -45,7 +45,7 @@ CREATE TABLE transactions (
 );
 
 -- Transaction Items Table (Line items for sales/purchases)
-CREATE TABLE transaction_items (
+CREATE TABLE IF NOT EXISTS transaction_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   transaction_id UUID REFERENCES transactions(id) ON DELETE CASCADE,
   item_id UUID REFERENCES items(id) ON DELETE RESTRICT,
@@ -55,7 +55,7 @@ CREATE TABLE transaction_items (
 );
 
 -- Expenses Table
-CREATE TABLE expenses (
+CREATE TABLE IF NOT EXISTS expenses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   description TEXT NOT NULL,
   amount DECIMAL(10, 2) NOT NULL,
@@ -74,7 +74,7 @@ FROM transactions
 GROUP BY DATE_TRUNC('month', created_at);
 
 -- Purchase Orders Table
-CREATE TABLE purchase_orders (
+CREATE TABLE IF NOT EXISTS purchase_orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   supplier_id UUID REFERENCES suppliers(id) ON DELETE RESTRICT,
   status TEXT NOT NULL CHECK (status IN ('pending', 'received', 'cancelled')) DEFAULT 'pending',
@@ -85,7 +85,7 @@ CREATE TABLE purchase_orders (
 );
 
 -- Purchase Order Items Table
-CREATE TABLE purchase_order_items (
+CREATE TABLE IF NOT EXISTS purchase_order_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   po_id UUID REFERENCES purchase_orders(id) ON DELETE CASCADE,
   item_id UUID REFERENCES items(id) ON DELETE RESTRICT,
