@@ -1,6 +1,8 @@
-import { Database, Key, CheckCircle2 } from 'lucide-react';
+import { Database, Key, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function Setup() {
+  const hasUrl = !!import.meta.env.VITE_SUPABASE_URL;
+  const hasKey = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
@@ -39,12 +41,20 @@ export default function Setup() {
                   <div className="flex items-center gap-2">
                     <Key className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-800 font-semibold">VITE_SUPABASE_URL</span>
+                    {hasUrl ? <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" /> : <AlertCircle className="w-4 h-4 text-red-500 ml-auto" />}
                   </div>
                   <div className="flex items-center gap-2">
                     <Key className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-800 font-semibold">VITE_SUPABASE_ANON_KEY</span>
+                    {hasKey ? <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" /> : <AlertCircle className="w-4 h-4 text-red-500 ml-auto" />}
                   </div>
                 </div>
+                {(!hasUrl || !hasKey) && (
+                  <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    Keys not detected. If you just added them, try refreshing the page.
+                  </p>
+                )}
               </div>
             </div>
           </div>

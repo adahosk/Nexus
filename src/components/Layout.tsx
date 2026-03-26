@@ -1,9 +1,12 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, Truck, Receipt, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Truck, Receipt, ShoppingCart, ShoppingBag, ClipboardList, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Sales', href: '/sales', icon: ShoppingCart },
+  { name: 'Purchases', href: '/purchases', icon: ShoppingBag },
+  { name: 'Purchase Orders', href: '/purchase-orders', icon: ClipboardList },
   { name: 'Inventory', href: '/inventory', icon: Package },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Suppliers', href: '/suppliers', icon: Truck },

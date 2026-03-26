@@ -72,3 +72,127 @@ SELECT
   SUM(CASE WHEN type = 'purchase' THEN total_amount ELSE 0 END) as total_purchases
 FROM transactions
 GROUP BY DATE_TRUNC('month', created_at);
+
+-- Purchase Orders Table
+CREATE TABLE purchase_orders (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  supplier_id UUID REFERENCES suppliers(id) ON DELETE RESTRICT,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'received', 'cancelled')) DEFAULT 'pending',
+  total_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+  expected_date DATE,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Purchase Order Items Table
+CREATE TABLE purchase_order_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  po_id UUID REFERENCES purchase_orders(id) ON DELETE CASCADE,
+  item_id UUID REFERENCES items(id) ON DELETE RESTRICT,
+  quantity INTEGER NOT NULL,
+  cost DECIMAL(10, 2) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RPC Functions for Atomic Transactions
+
+-- Record Sale
+CREATE OR REPLACE FUNCTION record_sale(
+  p_customer_id UUID,
+  p_total_amount DECIMAL,
+  p_amount_paid DECIMAL,
+  p_items JSONB
+) RETURNS UUID AS $$
+DECLARE
+  v_tx_id UUID;
+  v_item RECORD;
+BEGIN
+  INSERT INTO transactions (type, entity_id, total_amount, notes)
+  VALUES ('sale', p_customer_id, p_total_amount, 'Sale recorded')
+  RETURNING id INTO v_tx_id;
+
+  FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(item_id UUID, quantity INT, price DECIMAL)
+  LOOP
+    INSERT INTO transaction_items (transaction_id, item_id, quantity, price)
+    VALUES (v_tx_id, v_item.item_id, v_item.quantity, v_item.price);
+    
+    UPDATE items SET stock = stock - v_item.quantity WHERE id = v_item.item_id;
+  END LOOP;
+
+  IF p_customer_id IS NOT NULL AND p_total_amount > p_amount_paid THEN
+    UPDATE customers SET amount_owed = amount_owed + (p_total_amount - p_amount_paid)
+    WHERE id = p_customer_id;
+  END IF;
+
+  IF p_amount_paid > 0 THEN
+    INSERT INTO transactions (type, entity_id, total_amount, notes)
+    VALUES ('payment_in', p_customer_id, p_amount_paid, 'Payment for sale ' || v_tx_id);
+  END IF;
+
+  RETURN v_tx_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Record Purchase
+CREATE OR REPLACE FUNCTION record_purchase(
+  p_supplier_id UUID,
+  p_total_amount DECIMAL,
+  p_amount_paid DECIMAL,
+  p_items JSONB
+) RETURNS UUID AS $$
+DECLARE
+  v_tx_id UUID;
+  v_item RECORD;
+BEGIN
+  INSERT INTO transactions (type, entity_id, total_amount, notes)
+  VALUES ('purchase', p_supplier_id, p_total_amount, 'Purchase recorded')
+  RETURNING id INTO v_tx_id;
+
+  FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(item_id UUID, quantity INT, cost DECIMAL)
+  LOOP
+    INSERT INTO transaction_items (transaction_id, item_id, quantity, price)
+    VALUES (v_tx_id, v_item.item_id, v_item.quantity, v_item.cost);
+    
+    UPDATE items SET stock = stock + v_item.quantity WHERE id = v_item.item_id;
+  END LOOP;
+
+  IF p_supplier_id IS NOT NULL AND p_total_amount > p_amount_paid THEN
+    UPDATE suppliers SET amount_payable = amount_payable + (p_total_amount - p_amount_paid)
+    WHERE id = p_supplier_id;
+  END IF;
+
+  IF p_amount_paid > 0 THEN
+    INSERT INTO transactions (type, entity_id, total_amount, notes)
+    VALUES ('payment_out', p_supplier_id, p_amount_paid, 'Payment for purchase ' || v_tx_id);
+  END IF;
+
+  RETURN v_tx_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Receive Purchase Order
+CREATE OR REPLACE FUNCTION receive_purchase_order(
+  p_po_id UUID,
+  p_amount_paid DECIMAL
+) RETURNS UUID AS $$
+DECLARE
+  v_po RECORD;
+  v_items JSONB;
+  v_tx_id UUID;
+BEGIN
+  SELECT * INTO v_po FROM purchase_orders WHERE id = p_po_id AND status = 'pending';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'PO not found or already processed';
+  END IF;
+
+  SELECT jsonb_agg(jsonb_build_object('item_id', item_id, 'quantity', quantity, 'cost', cost))
+  INTO v_items
+  FROM purchase_order_items WHERE po_id = p_po_id;
+
+  v_tx_id := record_purchase(v_po.supplier_id, v_po.total_amount, p_amount_paid, v_items);
+
+  UPDATE purchase_orders SET status = 'received' WHERE id = p_po_id;
+
+  RETURN v_tx_id;
+END;
+$$ LANGUAGE plpgsql;

@@ -5,6 +5,9 @@ import Inventory from './pages/Inventory';
 import Customers from './pages/Customers';
 import Suppliers from './pages/Suppliers';
 import Expenses from './pages/Expenses';
+import Sales from './pages/Sales';
+import Purchases from './pages/Purchases';
+import PurchaseOrders from './pages/PurchaseOrders';
 import Setup from './pages/Setup';
 import { hasSupabaseConfig } from './lib/supabase';
 
@@ -19,6 +22,9 @@ export default function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="sales" element={<Sales />} />
+          <Route path="purchases" element={<Purchases />} />
+          <Route path="purchase-orders" element={<PurchaseOrders />} />
           <Route path="inventory" element={<Inventory />} />
           <Route path="customers" element={<Customers />} />
           <Route path="suppliers" element={<Suppliers />} />
