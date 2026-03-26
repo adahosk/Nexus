@@ -1,0 +1,5 @@
+{
+  "name": "Nexus Ledger",
+  "description": "Shop Management App with Triple Ledger, Inventory, and Barcode Scanning",
+  "requestFramePermissions": ["camera"]
+}
